@@ -1,0 +1,127 @@
+{
+  "config": {
+    "step": {
+      "user": {
+        "title": "Robotail RFeeder",
+        "description": "Sign in with your R Feeder app account.",
+        "data": {
+          "username": "Email",
+          "password": "Password",
+          "area": "Region code (e.g. DE)"
+        }
+      }
+    },
+    "error": {
+      "cannot_connect": "Failed to connect to the Robotail cloud",
+      "invalid_auth": "Invalid email or password",
+      "missing_required": "Required field missing",
+      "unknown": "Unexpected error"
+    },
+    "abort": {
+      "already_configured": "Account is already configured"
+    }
+  },
+  "entity": {
+    "sensor": {
+      "global_state": { "name": "Status" },
+      "feed_state": { "name": "Feeding state" },
+      "door_state": { "name": "Door" },
+      "tray_state": { "name": "Tray" },
+      "actual_temperature": { "name": "Temperature" },
+      "tray_temperature": { "name": "Tray temperature" },
+      "thermoelectric_temperature": { "name": "Cooling element temperature" },
+      "temperature_trend": { "name": "Temperature trend" },
+      "feedings_today": { "name": "Feedings today" },
+      "last_feeding": { "name": "Last feeding" },
+      "next_scheduled_feeding": { "name": "Next scheduled feeding" },
+      "power_supply": { "name": "Power supply" },
+      "battery_level": { "name": "Battery" },
+      "wifi_ssid": { "name": "Wi-Fi SSID" },
+      "wifi_rssi": { "name": "Wi-Fi signal" },
+      "firmware_version": { "name": "Firmware" },
+      "tray_compartments": { "name": "Tray compartments" }
+    },
+    "binary_sensor": {
+      "online": { "name": "Online" },
+      "feeding": { "name": "Feeding in progress" },
+      "pet_detected": { "name": "Pet detected" },
+      "door_fault": { "name": "Door fault" },
+      "tray_fault": { "name": "Tray fault" },
+      "feed_fault": { "name": "Feeding fault" },
+      "temperature_sensor_fault": { "name": "Temperature sensor fault" }
+    },
+    "switch": {
+      "temperature_control": { "name": "Temperature control" },
+      "pet_detection": { "name": "Pet detection" },
+      "auto_feeding": { "name": "Auto feeding" },
+      "heat_before_feed_now": { "name": "Heat before feeding" },
+      "automatic_update": { "name": "Automatic firmware updates" }
+    },
+    "number": {
+      "feed_duration": { "name": "Feeding duration (lid opening)" },
+      "expected_heating_temperature": { "name": "Pre-heating target temperature" }
+    },
+    "select": {
+      "feed_compartment": { "name": "Feed compartment" },
+      "cooling_level": {
+        "name": "Cooling",
+        "state": {
+          "off": "Off",
+          "weak": "Weak",
+          "medium": "Medium",
+          "strong": "Strong"
+        }
+      }
+    },
+    "button": {
+      "feed_now": { "name": "Feed now" },
+      "stop_feeding": { "name": "Stop feeding" },
+      "skip_heating": { "name": "Skip heating" }
+    }
+  },
+  "services": {
+    "feed_now": {
+      "name": "Feed now",
+      "description": "Starts a feeding immediately.",
+      "fields": {
+        "device_id": { "name": "Device", "description": "Feeder device id (optional if only one device)" },
+        "tray_compartment_index": { "name": "Tray compartment", "description": "Tray compartment index (1-4)" },
+        "feed_duration_seconds": { "name": "Duration", "description": "Feeding duration in seconds" },
+        "heat_before_feeding": { "name": "Preheat", "description": "Heat the food before feeding" },
+        "expected_heating_temperature": { "name": "Heating temperature", "description": "Target heating temperature in °C" }
+      }
+    },
+    "add_schedule": {
+      "name": "Add feeding schedule",
+      "description": "Adds a feeding schedule (time is interpreted as UTC).",
+      "fields": {
+        "device_id": { "name": "Device", "description": "Feeder device id" },
+        "hour": { "name": "Hour", "description": "Hour (0-23)" },
+        "minute": { "name": "Minute", "description": "Minute (0-59)" },
+        "weekdays": { "name": "Weekdays", "description": "Weekday bitmask: bit0=Sunday ... bit6=Saturday; 0 = one-time" },
+        "enabled": { "name": "Enabled", "description": "Schedule is active" },
+        "tray_compartment_index": { "name": "Tray compartment", "description": "Tray compartment index" },
+        "feed_duration_seconds": { "name": "Duration", "description": "Feeding duration in seconds" },
+        "heat_before_feeding": { "name": "Preheat", "description": "Heat before feeding" },
+        "expected_heating_temperature": { "name": "Heating temperature", "description": "Target heating temperature in °C" }
+      }
+    },
+    "remove_schedule": {
+      "name": "Remove feeding schedule",
+      "description": "Removes a feeding schedule by id.",
+      "fields": {
+        "device_id": { "name": "Device", "description": "Feeder device id" },
+        "schedule_id": { "name": "Schedule id", "description": "Id of the schedule (see next scheduled feeding attributes)" }
+      }
+    },
+    "set_schedule_enabled": {
+      "name": "Enable/disable schedule",
+      "description": "Enables or disables an existing feeding schedule.",
+      "fields": {
+        "device_id": { "name": "Device", "description": "Feeder device id" },
+        "schedule_id": { "name": "Schedule id", "description": "Id of the schedule" },
+        "enabled": { "name": "Enabled", "description": "Enable or disable" }
+      }
+    }
+  }
+}

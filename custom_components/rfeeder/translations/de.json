@@ -1,0 +1,127 @@
+{
+  "config": {
+    "step": {
+      "user": {
+        "title": "Robotail RFeeder",
+        "description": "Melde dich mit deinem R-Feeder-App-Konto an.",
+        "data": {
+          "username": "E-Mail",
+          "password": "Passwort",
+          "area": "Regionscode (z. B. DE)"
+        }
+      }
+    },
+    "error": {
+      "cannot_connect": "Verbindung zur Robotail-Cloud fehlgeschlagen",
+      "invalid_auth": "E-Mail oder Passwort ungültig",
+      "missing_required": "Pflichtfeld fehlt",
+      "unknown": "Unerwarteter Fehler"
+    },
+    "abort": {
+      "already_configured": "Konto ist bereits eingerichtet"
+    }
+  },
+  "entity": {
+    "sensor": {
+      "global_state": { "name": "Status" },
+      "feed_state": { "name": "Fütterungsstatus" },
+      "door_state": { "name": "Klappe" },
+      "tray_state": { "name": "Drehteller" },
+      "actual_temperature": { "name": "Temperatur" },
+      "tray_temperature": { "name": "Tellertemperatur" },
+      "thermoelectric_temperature": { "name": "Kühlelement-Temperatur" },
+      "temperature_trend": { "name": "Temperaturtrend" },
+      "feedings_today": { "name": "Fütterungen heute" },
+      "last_feeding": { "name": "Letzte Fütterung" },
+      "next_scheduled_feeding": { "name": "Nächste geplante Fütterung" },
+      "power_supply": { "name": "Stromversorgung" },
+      "battery_level": { "name": "Akku" },
+      "wifi_ssid": { "name": "WLAN-SSID" },
+      "wifi_rssi": { "name": "WLAN-Signal" },
+      "firmware_version": { "name": "Firmware" },
+      "tray_compartments": { "name": "Tellerfächer" }
+    },
+    "binary_sensor": {
+      "online": { "name": "Online" },
+      "feeding": { "name": "Fütterung läuft" },
+      "pet_detected": { "name": "Tier erkannt" },
+      "door_fault": { "name": "Klappenfehler" },
+      "tray_fault": { "name": "Tellerfehler" },
+      "feed_fault": { "name": "Fütterungsfehler" },
+      "temperature_sensor_fault": { "name": "Temperatursensorfehler" }
+    },
+    "switch": {
+      "temperature_control": { "name": "Temperaturregelung" },
+      "pet_detection": { "name": "Tiererkennung" },
+      "auto_feeding": { "name": "Auto-Fütterung" },
+      "heat_before_feed_now": { "name": "Vor dem Füttern aufwärmen" },
+      "automatic_update": { "name": "Automatische Firmware-Updates" }
+    },
+    "number": {
+      "feed_duration": { "name": "Fütterungsdauer (Klappenöffnung)" },
+      "expected_heating_temperature": { "name": "Aufwärm-Zieltemperatur" }
+    },
+    "select": {
+      "feed_compartment": { "name": "Fütterungsfach" },
+      "cooling_level": {
+        "name": "Kühlung",
+        "state": {
+          "off": "Aus",
+          "weak": "Schwach",
+          "medium": "Mittel",
+          "strong": "Stark"
+        }
+      }
+    },
+    "button": {
+      "feed_now": { "name": "Jetzt füttern" },
+      "stop_feeding": { "name": "Fütterung stoppen" },
+      "skip_heating": { "name": "Aufwärmen überspringen" }
+    }
+  },
+  "services": {
+    "feed_now": {
+      "name": "Jetzt füttern",
+      "description": "Startet sofort eine Fütterung.",
+      "fields": {
+        "device_id": { "name": "Gerät", "description": "Geräte-ID des Feeders (optional bei nur einem Gerät)" },
+        "tray_compartment_index": { "name": "Tellerfach", "description": "Index des Tellerfachs (1-4)" },
+        "feed_duration_seconds": { "name": "Dauer", "description": "Fütterungsdauer in Sekunden" },
+        "heat_before_feeding": { "name": "Vorwärmen", "description": "Futter vor der Fütterung aufwärmen" },
+        "expected_heating_temperature": { "name": "Aufwärmtemperatur", "description": "Zieltemperatur zum Aufwärmen in °C" }
+      }
+    },
+    "add_schedule": {
+      "name": "Fütterungsplan hinzufügen",
+      "description": "Fügt einen Fütterungsplan hinzu (Zeit wird als UTC interpretiert).",
+      "fields": {
+        "device_id": { "name": "Gerät", "description": "Geräte-ID des Feeders" },
+        "hour": { "name": "Stunde", "description": "Stunde (0-23)" },
+        "minute": { "name": "Minute", "description": "Minute (0-59)" },
+        "weekdays": { "name": "Wochentage", "description": "Wochentags-Bitmask: Bit0=Sonntag ... Bit6=Samstag; 0 = einmalig" },
+        "enabled": { "name": "Aktiv", "description": "Plan ist aktiv" },
+        "tray_compartment_index": { "name": "Tellerfach", "description": "Index des Tellerfachs" },
+        "feed_duration_seconds": { "name": "Dauer", "description": "Fütterungsdauer in Sekunden" },
+        "heat_before_feeding": { "name": "Vorwärmen", "description": "Vor dem Füttern aufwärmen" },
+        "expected_heating_temperature": { "name": "Aufwärmtemperatur", "description": "Zieltemperatur zum Aufwärmen in °C" }
+      }
+    },
+    "remove_schedule": {
+      "name": "Fütterungsplan entfernen",
+      "description": "Entfernt einen Fütterungsplan anhand der ID.",
+      "fields": {
+        "device_id": { "name": "Gerät", "description": "Geräte-ID des Feeders" },
+        "schedule_id": { "name": "Plan-ID", "description": "ID des Plans (siehe Attribute des Sensors für die nächste Fütterung)" }
+      }
+    },
+    "set_schedule_enabled": {
+      "name": "Fütterungsplan aktivieren/deaktivieren",
+      "description": "Aktiviert oder deaktiviert einen bestehenden Fütterungsplan.",
+      "fields": {
+        "device_id": { "name": "Gerät", "description": "Geräte-ID des Feeders" },
+        "schedule_id": { "name": "Plan-ID", "description": "ID des Plans" },
+        "enabled": { "name": "Aktiv", "description": "Aktivieren oder deaktivieren" }
+      }
+    }
+  }
+}

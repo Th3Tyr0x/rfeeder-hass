@@ -1,0 +1,117 @@
+feed_now:
+  fields:
+    device_id:
+      required: false
+      selector:
+        text:
+    tray_compartment_index:
+      required: false
+      selector:
+        number:
+          min: 1
+          max: 4
+    feed_duration_seconds:
+      required: false
+      selector:
+        number:
+          min: 30
+          max: 3600
+          unit_of_measurement: s
+    heat_before_feeding:
+      required: false
+      selector:
+        boolean:
+    expected_heating_temperature:
+      required: false
+      selector:
+        number:
+          min: 10
+          max: 40
+          unit_of_measurement: "°C"
+
+add_schedule:
+  fields:
+    device_id:
+      required: false
+      selector:
+        text:
+    hour:
+      required: true
+      selector:
+        number:
+          min: 0
+          max: 23
+    minute:
+      required: true
+      selector:
+        number:
+          min: 0
+          max: 59
+    weekdays:
+      required: false
+      default: 0
+      selector:
+        number:
+          min: 0
+          max: 127
+    enabled:
+      required: false
+      default: true
+      selector:
+        boolean:
+    tray_compartment_index:
+      required: false
+      default: 1
+      selector:
+        number:
+          min: 1
+          max: 4
+    feed_duration_seconds:
+      required: false
+      default: 300
+      selector:
+        number:
+          min: 30
+          max: 3600
+          unit_of_measurement: s
+    heat_before_feeding:
+      required: false
+      default: false
+      selector:
+        boolean:
+    expected_heating_temperature:
+      required: false
+      default: 24
+      selector:
+        number:
+          min: 10
+          max: 40
+          unit_of_measurement: "°C"
+
+remove_schedule:
+  fields:
+    device_id:
+      required: false
+      selector:
+        text:
+    schedule_id:
+      required: true
+      selector:
+        number:
+          min: 0
+
+set_schedule_enabled:
+  fields:
+    device_id:
+      required: false
+      selector:
+        text:
+    schedule_id:
+      required: true
+      selector:
+        number:
+          min: 0
+    enabled:
+      required: true
+      selector:
+        boolean:

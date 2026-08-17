@@ -1,0 +1,12 @@
+{
+  "domain": "rfeeder",
+  "name": "Robotail RFeeder",
+  "codeowners": ["@Th3Tyr0x"],
+  "config_flow": true,
+  "documentation": "https://github.com/Th3Tyr0x/rfeeder-hass",
+  "integration_type": "device",
+  "iot_class": "cloud_polling",
+  "issue_tracker": "https://github.com/Th3Tyr0x/rfeeder-hass/issues",
+  "requirements": [],
+  "version": "0.1.0"
+}
