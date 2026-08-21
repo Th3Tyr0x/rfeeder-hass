@@ -253,7 +253,7 @@
         },
         "plan": {
           "name": "Plan",
-          "description": "Liste von Einträgen: {compartment, time (Ortszeit HH:MM), weekdays [mon..sun], feed_duration_minutes, heat_before_feeding, enabled}"
+          "description": "Liste von Einträgen mit den Schlüsseln: compartment, time (Ortszeit HH:MM), weekdays [mon..sun], feed_duration_minutes, heat_before_feeding, enabled"
         },
         "replace": {
           "name": "Ersetzen",

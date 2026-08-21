@@ -87,7 +87,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     await hass.config_entries.async_forward_entry_setups(entry, PLATFORMS)
 
     _cleanup_legacy_entities(hass, entry)
-    _register_card(hass)
+    await _register_card(hass)
 
     coordinator.start_mqtt()
     entry.async_on_unload(coordinator.stop_mqtt)
@@ -96,14 +96,22 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     return True
 
 
-def _register_card(hass: HomeAssistant) -> None:
+async def _register_card(hass: HomeAssistant) -> None:
     """Serve the bundled Lovelace card and load it on every dashboard page."""
     card_path = Path(__file__).parent / "www" / "rfeeder-card.js"
     if not card_path.is_file():
         _LOGGER.warning("RFeeder card file missing: %s", card_path)
         return
     url = f"/{DOMAIN}_www/rfeeder-card.js"
-    hass.http.register_static_path(url, str(card_path), cache_headers=False)
+    try:
+        from homeassistant.components.http import StaticPathConfig
+
+        await hass.http.async_register_static_paths(
+            [StaticPathConfig(url, str(card_path), cache_headers=False)]
+        )
+    except (ImportError, AttributeError) as err:
+        _LOGGER.warning("Could not serve the RFeeder card file: %s", err)
+        return
     try:
         from homeassistant.components import frontend
 
