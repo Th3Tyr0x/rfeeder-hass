@@ -1,0 +1,157 @@
+blueprint:
+  name: RFeeder Wochenplan (Weekly Feeding Plan)
+  description: >-
+    Weekly feeding plan for the Robotail RFeeder: one time per tray
+    compartment, repeated on the chosen weekdays. Compartments can be
+    disabled individually. Note: plans run through Home Assistant — they
+    need HA and cloud connectivity at feeding time. For schedules that run
+    autonomously on the device, use the rfeeder.add_schedule /
+    rfeeder.sync_weekly_plan services instead.
+  domain: automation
+  source_url: https://github.com/Th3Tyr0x/rfeeder-hass/blob/main/blueprints/automation/rfeeder/weekly_feeding_plan.yaml
+  input:
+    enabled_fach1:
+      name: Compartment 1 enabled
+      default: true
+      selector:
+        boolean:
+    time_fach1:
+      name: Compartment 1 time
+      default: "08:00"
+      selector:
+        time: {}
+    enabled_fach2:
+      name: Compartment 2 enabled
+      default: true
+      selector:
+        boolean:
+    time_fach2:
+      name: Compartment 2 time
+      default: "12:00"
+      selector:
+        time: {}
+    enabled_fach3:
+      name: Compartment 3 enabled
+      default: true
+      selector:
+        boolean:
+    time_fach3:
+      name: Compartment 3 time
+      default: "18:00"
+      selector:
+        time: {}
+    enabled_fach4:
+      name: Compartment 4 enabled
+      default: true
+      selector:
+        boolean:
+    time_fach4:
+      name: Compartment 4 time
+      default: "21:00"
+      selector:
+        time: {}
+    weekdays:
+      name: Weekdays
+      description: Days to feed (none selected = every day)
+      default: []
+      selector:
+        select:
+          multiple: true
+          options:
+            - mon
+            - tue
+            - wed
+            - thu
+            - fri
+            - sat
+            - sun
+    duration_minutes:
+      name: Lid opening duration (minutes)
+      default: 5
+      selector:
+        number:
+          min: 1
+          max: 60
+          unit_of_measurement: min
+          mode: box
+    preheat:
+      name: Pre-heat food
+      default: false
+      selector:
+        boolean:
+
+variables:
+  weekdays: !input weekdays
+  enabled_fach1: !input enabled_fach1
+  enabled_fach2: !input enabled_fach2
+  enabled_fach3: !input enabled_fach3
+  enabled_fach4: !input enabled_fach4
+
+trigger:
+  - platform: time
+    at: !input time_fach1
+    id: fach1
+  - platform: time
+    at: !input time_fach2
+    id: fach2
+  - platform: time
+    at: !input time_fach3
+    id: fach3
+  - platform: time
+    at: !input time_fach4
+    id: fach4
+
+condition:
+  - condition: template
+    value_template: >-
+      {{ weekdays | length == 0 or
+         ['sun','mon','tue','wed','thu','fri','sat'][now().isoweekday() % 7] in weekdays }}
+
+action:
+  - choose:
+      - conditions:
+          - condition: trigger
+            id: fach1
+          - condition: template
+            value_template: "{{ enabled_fach1 }}"
+        sequence:
+          - action: rfeeder.feed_now
+            data:
+              tray_compartment_index: 1
+              feed_duration_minutes: !input duration_minutes
+              heat_before_feeding: !input preheat
+      - conditions:
+          - condition: trigger
+            id: fach2
+          - condition: template
+            value_template: "{{ enabled_fach2 }}"
+        sequence:
+          - action: rfeeder.feed_now
+            data:
+              tray_compartment_index: 2
+              feed_duration_minutes: !input duration_minutes
+              heat_before_feeding: !input preheat
+      - conditions:
+          - condition: trigger
+            id: fach3
+          - condition: template
+            value_template: "{{ enabled_fach3 }}"
+        sequence:
+          - action: rfeeder.feed_now
+            data:
+              tray_compartment_index: 3
+              feed_duration_minutes: !input duration_minutes
+              heat_before_feeding: !input preheat
+      - conditions:
+          - condition: trigger
+            id: fach4
+          - condition: template
+            value_template: "{{ enabled_fach4 }}"
+        sequence:
+          - action: rfeeder.feed_now
+            data:
+              tray_compartment_index: 4
+              feed_duration_minutes: !input duration_minutes
+              heat_before_feeding: !input preheat
+
+mode: queued

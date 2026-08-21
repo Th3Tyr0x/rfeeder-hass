@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 import logging
-from pathlib import Path
 from typing import Any
 
 import voluptuous as vol
@@ -87,83 +86,12 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     await hass.config_entries.async_forward_entry_setups(entry, PLATFORMS)
 
     _cleanup_legacy_entities(hass, entry)
-    await _register_card(hass)
 
     coordinator.start_mqtt()
     entry.async_on_unload(coordinator.stop_mqtt)
 
     _register_services(hass)
     return True
-
-
-async def _register_card(hass: HomeAssistant) -> None:
-    """Serve the bundled Lovelace card and register it as a dashboard resource."""
-    card_path = Path(__file__).parent / "www" / "rfeeder-card.js"
-    if not card_path.is_file():
-        _LOGGER.warning("RFeeder card file missing: %s", card_path)
-        return
-    url = f"/{DOMAIN}_www/rfeeder-card.js"
-    try:
-        from homeassistant.components.http import StaticPathConfig
-
-        await hass.http.async_register_static_paths(
-            [StaticPathConfig(url, str(card_path), cache_headers=False)]
-        )
-    except Exception as err:  # noqa: BLE001 - card serving must not break setup
-        _LOGGER.warning("Could not serve the RFeeder card file: %s", err)
-        return
-
-    # version query for cache busting on updates
-    try:
-        version = int(card_path.stat().st_mtime)
-    except OSError:
-        version = 1
-    resource_url = f"{url}?v={version}"
-
-    # Preferred: register as a Lovelace storage-mode resource (visible under
-    # Settings -> Dashboards -> Resources).
-    try:
-        lovelace_data = hass.data.get("lovelace")
-        resources = getattr(lovelace_data, "resources", None)
-        if resources is not None and hasattr(resources, "async_create_item"):
-            existing = {
-                str(item.get("url", "")).split("?")[0]: item
-                for item in resources.async_items()
-            }
-            if url in existing:
-                item = existing[url]
-                if item.get("url") != resource_url:
-                    await resources.async_update_item(
-                        item["id"], {"res_type": "module", "url": resource_url}
-                    )
-                    _LOGGER.info("Updated Lovelace resource %s", resource_url)
-            else:
-                await resources.async_create_item({"res_type": "module", "url": resource_url})
-                _LOGGER.info("Registered Lovelace resource %s", resource_url)
-            return
-    except Exception as err:  # noqa: BLE001 - fall back to add_extra_js_url
-        _LOGGER.debug("Lovelace resource registration failed, using fallback: %s", err)
-
-    # Fallback (yaml resource mode etc.): load the module on every page.
-    try:
-        from homeassistant.components import frontend
-
-        frontend.add_extra_js_url(hass, resource_url)
-    except Exception as err:  # noqa: BLE001
-        _LOGGER.warning(
-            "Could not auto-register the RFeeder card; add the resource manually: %s (%s)",
-            resource_url,
-            err,
-        )
-
-
-def _cleanup_legacy_entities(hass: HomeAssistant, entry: ConfigEntry) -> None:
-    """Remove entity-registry entries of entities removed in later releases."""
-    registry = er.async_get(hass)
-    for entity in er.async_entries_for_config_entry(registry, entry.entry_id):
-        if entity.unique_id.endswith(_LEGACY_ENTITY_SUFFIXES):
-            _LOGGER.info("Removing legacy entity %s", entity.entity_id)
-            registry.async_remove(entity.entity_id)
 
 
 async def async_unload_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:

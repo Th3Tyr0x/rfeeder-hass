@@ -12,8 +12,8 @@ against the UBTech UCSP cloud. Domain: `rfeeder`.
   - `coordinator.py` — DataUpdateCoordinator (REST poll) + MQTT thread (live push, commands)
   - `sensor.py` / `binary_sensor.py` / `switch.py` / `number.py` / `select.py` / `button.py` — platforms
   - `secrets.py` — obfuscated bundle of the app constants (do not paste raw values elsewhere)
-- `custom_components/rfeeder/www/rfeeder-card.js` — Lovelace weekly-plan card
-  (grid: compartments × days; auto-registered via frontend.add_extra_js_url)
+- `blueprints/automation/rfeeder/weekly_feeding_plan.yaml` — weekly feeding plan
+  blueprint (one time per compartment + shared weekdays; calls rfeeder.feed_now)
 - `docs/PROTOCOL.md` — full reverse-engineered protocol documentation (READ THIS FIRST)
 - `tools/live_test.py` — end-to-end smoke test against the live cloud
   (uses real integration modules with HA shims; `--feed` triggers a physical feeding!)

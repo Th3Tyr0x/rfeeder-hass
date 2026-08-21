@@ -35,19 +35,21 @@ decrypted Dart AOT snapshot). Protocol documentation: [docs/PROTOCOL.md](docs/PR
 
 ## Feeding plans (weekly plan)
 
-### Weekly plan card (recommended)
+### Weekly plan blueprint (recommended)
 
-The integration ships a Lovelace card — **no manual resource registration needed**,
-it is loaded automatically once the integration is set up:
+[![Import Blueprint](https://my.home-assistant.io/badges/blueprint_import.svg)](https://my.home-assistant.io/redirect/blueprint_import/?blueprint_url=https%3A%2F%2Fraw.githubusercontent.com%2FTh3Tyr0x%2Frfeeder-hass%2Fmain%2Fblueprints%2Fautomation%2Frfeeder%2Fweekly_feeding_plan.yaml)
 
-```yaml
-type: custom:rfeeder-weekly-card
+Click the badge (or in HA: *Settings → Automations & Scenes → Blueprints → Import Blueprint*)
+and paste this URL:
+
+```
+https://raw.githubusercontent.com/Th3Tyr0x/rfeeder-hass/main/blueprints/automation/rfeeder/weekly_feeding_plan.yaml
 ```
 
-- Grid: **rows = tray compartments 1–4, columns = Mon–Sun**
-- Click **+** in a cell to add a feeding time, click a time chip to delete it
-- Duration (minutes) and pre-heat toggles at the bottom apply to all entries
-- **Save** writes the whole week to the device in one go (via `rfeeder.sync_weekly_plan`)
+One blueprint = the whole week: a time per tray compartment (compartments can be
+disabled individually), the weekdays it applies to (empty = every day), lid-opening
+duration and optional pre-heating. These plans run through Home Assistant and need
+HA + cloud connectivity at feeding time.
 
 ### On-device schedules (run autonomously)
 
