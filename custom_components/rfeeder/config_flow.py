@@ -10,6 +10,7 @@ from homeassistant.helpers import aiohttp_client, selector
 
 from .api import UcspApiError, UcspAuthError, UcspClient
 from .const import (
+    AREA_CODES,
     CONF_AREA,
     CONF_APP_ID,
     CONF_APP_SECRET,
@@ -38,7 +39,17 @@ def _schema(defaults: dict[str, Any] | None = None) -> vol.Schema:
             vol.Required(CONF_PASSWORD): selector.TextSelector(
                 selector.TextSelectorConfig(type=selector.TextSelectorType.PASSWORD)
             ),
-            vol.Required(CONF_AREA, default=defaults.get(CONF_AREA, DEFAULT_AREA)): str,
+            vol.Required(
+                CONF_AREA, default=defaults.get(CONF_AREA, DEFAULT_AREA)
+            ): selector.SelectSelector(
+                selector.SelectSelectorConfig(
+                    options=[
+                        selector.SelectOptionDict(value=code, label=name)
+                        for code, name in AREA_CODES.items()
+                    ],
+                    mode=selector.SelectSelectorMode.DROPDOWN,
+                )
+            ),
         }
     )
 

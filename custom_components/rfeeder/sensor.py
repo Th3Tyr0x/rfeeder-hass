@@ -322,16 +322,38 @@ class RFeederNextScheduleSensor(RFeederEntity, SensorEntity):
             if not isinstance(schedule, dict):
                 continue
             start = schedule.get("start") or {}
+            hour = int(start.get("hour", 0))
+            minute = int(start.get("minute", 0))
+            weekdays = int(schedule.get("weekdays", 0) or 0)
             schedules.append(
                 {
                     "id": schedule.get("id"),
-                    "time_utc": f"{start.get('hour', 0):02d}:{start.get('minute', 0):02d}",
+                    "time_local": _utc_to_local_str(hour, minute),
+                    "time_utc": f"{hour:02d}:{minute:02d}",
                     "enabled": schedule.get("enabled"),
-                    "weekdays_mask": schedule.get("weekdays"),
+                    "weekdays": _weekday_names(weekdays),
+                    "weekdays_mask": weekdays,
                     "feed_options": schedule.get("feedOptions"),
                 }
             )
         return {"schedules": schedules}
+
+
+_WEEKDAY_NAMES = ("sun", "mon", "tue", "wed", "thu", "fri", "sat")
+
+
+def _weekday_names(mask: int) -> list[str]:
+    return [name for bit, name in enumerate(_WEEKDAY_NAMES) if mask & (1 << bit)]
+
+
+def _utc_to_local_str(hour: int, minute: int) -> str:
+    """Convert a UTC wall time to the local (HA timezone) HH:MM string."""
+    from homeassistant.util import dt as dt_util
+
+    now = dt_util.now()
+    utc_dt = now.astimezone(UTC).replace(hour=hour, minute=minute, second=0, microsecond=0)
+    local = utc_dt.astimezone(now.tzinfo)
+    return f"{local.hour:02d}:{local.minute:02d}"
 
 
 def _next_occurrence(now: datetime, hour: int, minute: int, weekdays_mask: int) -> datetime | None:

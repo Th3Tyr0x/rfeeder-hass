@@ -10,24 +10,17 @@ feed_now:
         number:
           min: 1
           max: 4
-    feed_duration_seconds:
+    feed_duration_minutes:
       required: false
       selector:
         number:
-          min: 30
-          max: 3600
-          unit_of_measurement: s
+          min: 1
+          max: 60
+          unit_of_measurement: min
     heat_before_feeding:
       required: false
       selector:
         boolean:
-    expected_heating_temperature:
-      required: false
-      selector:
-        number:
-          min: 10
-          max: 40
-          unit_of_measurement: "°C"
 
 add_schedule:
   fields:
@@ -35,25 +28,26 @@ add_schedule:
       required: false
       selector:
         text:
+    time:
+      required: false
+      selector:
+        time:
     hour:
-      required: true
+      required: false
       selector:
         number:
           min: 0
           max: 23
     minute:
-      required: true
+      required: false
       selector:
         number:
           min: 0
           max: 59
     weekdays:
       required: false
-      default: 0
       selector:
-        number:
-          min: 0
-          max: 127
+        object:
     enabled:
       required: false
       default: true
@@ -66,27 +60,19 @@ add_schedule:
         number:
           min: 1
           max: 4
-    feed_duration_seconds:
+    feed_duration_minutes:
       required: false
-      default: 300
+      default: 5
       selector:
         number:
-          min: 30
-          max: 3600
-          unit_of_measurement: s
+          min: 1
+          max: 60
+          unit_of_measurement: min
     heat_before_feeding:
       required: false
       default: false
       selector:
         boolean:
-    expected_heating_temperature:
-      required: false
-      default: 24
-      selector:
-        number:
-          min: 10
-          max: 40
-          unit_of_measurement: "°C"
 
 remove_schedule:
   fields:

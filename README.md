@@ -24,13 +24,54 @@ decrypted Dart AOT snapshot). Protocol documentation: [docs/PROTOCOL.md](docs/PR
 
 **Controls**
 - Buttons: *Feed now*, *Stop feeding*, *Skip heating*
+- Selects: *feed compartment* (tray 1–4) and *cooling level* (off/weak/medium/strong — same as the app)
 - Switches: temperature control, pet detection, auto feeding, heat-before-feeding, automatic firmware updates
-- Numbers: cooling target temperature (°C), feeding duration, heating target temperature
+- Number: feeding duration (lid opening, in **minutes** — same as the app)
 
 **Services (Actions)**
-- `rfeeder.feed_now` — with optional compartment, duration, preheat parameters
+- `rfeeder.feed_now` — with optional compartment, duration (minutes), preheat parameters
 - `rfeeder.add_schedule` / `rfeeder.remove_schedule` / `rfeeder.set_schedule_enabled` —
-  manage feeding schedules (times are UTC, `weekdays` bitmask bit0=Sunday … bit6=Saturday)
+  manage feeding schedules stored **on the device** (run autonomously, even without HA)
+
+## Feeding plans
+
+Two ways to schedule feedings:
+
+### Option A: Blueprint (recommended, nicest UI)
+
+[![Import Blueprint](https://my.home-assistant.io/badges/blueprint_import.svg)](https://my.home-assistant.io/redirect/blueprint_import/?blueprint_url=https%3A%2F%2Fraw.githubusercontent.com%2FTh3Tyr0x%2Frfeeder-hass%2Fmain%2Fblueprints%2Fautomation%2Frfeeder%2Ffeeding_schedule.yaml)
+
+Click the badge (or in HA: *Settings → Automations & Scenes → Blueprints → Import Blueprint*)
+and paste this URL:
+
+```
+https://raw.githubusercontent.com/Th3Tyr0x/rfeeder-hass/main/blueprints/automation/rfeeder/feeding_schedule.yaml
+```
+
+Then create one automation per plan: time (local), weekdays, tray compartment,
+duration in minutes, optional pre-heat. These plans run through Home Assistant
+and need HA + cloud connectivity at feeding time.
+
+### Option B: On-device schedules (run autonomously)
+
+Schedules stored on the feeder itself keep working even when HA or the internet
+is down. Manage them via actions:
+
+```yaml
+action: rfeeder.add_schedule
+data:
+  time: "08:00"              # local time (your HA timezone)
+  weekdays: ["mon","tue","wed","thu","fri"]
+  tray_compartment_index: 1
+  feed_duration_minutes: 5
+```
+
+- `weekdays` empty = one-time; a raw bitmask int (bit0=Sunday … bit6=Saturday) is also accepted.
+  Note: the device stores the time in **UTC** — the integration converts from your
+  HA timezone for you (like the app, a fixed UTC time shifts one hour across DST changes).
+- The sensor **Next scheduled feeding** lists all plans with their ids, local time and
+  weekdays in its attributes.
+- `rfeeder.remove_schedule` / `rfeeder.set_schedule_enabled` take the `schedule_id`.
 
 ## How it works
 

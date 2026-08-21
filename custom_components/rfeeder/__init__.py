@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import logging
+from typing import Any
 
 import voluptuous as vol
 
@@ -9,6 +10,8 @@ from homeassistant.const import CONF_PASSWORD, CONF_USERNAME
 from homeassistant.core import HomeAssistant, ServiceCall
 from homeassistant.exceptions import HomeAssistantError
 from homeassistant.helpers import aiohttp_client
+from homeassistant.helpers import entity_registry as er
+from homeassistant.util import dt as dt_util
 
 from . import proto
 from .api import UcspClient
@@ -34,6 +37,19 @@ from .mqtt_client import MqttError
 _LOGGER = logging.getLogger(__name__)
 
 CONF_DEVICE_ID = "device_id"
+
+# Entity unique_ids from pre-release versions that no longer exist.
+_LEGACY_ENTITY_SUFFIXES = ("_expected_cooling_temperature", "_expected_heating_temperature")
+
+_WEEKDAY_BITS = {
+    "sun": 0,
+    "mon": 1,
+    "tue": 2,
+    "wed": 3,
+    "thu": 4,
+    "fri": 5,
+    "sat": 6,
+}
 
 
 async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
@@ -68,11 +84,22 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     hass.data.setdefault(DOMAIN, {})[entry.entry_id] = coordinator
     await hass.config_entries.async_forward_entry_setups(entry, PLATFORMS)
 
+    _cleanup_legacy_entities(hass, entry)
+
     coordinator.start_mqtt()
     entry.async_on_unload(coordinator.stop_mqtt)
 
     _register_services(hass)
     return True
+
+
+def _cleanup_legacy_entities(hass: HomeAssistant, entry: ConfigEntry) -> None:
+    """Remove entity-registry entries of entities removed in later releases."""
+    registry = er.async_get(hass)
+    for entity in er.async_entries_for_config_entry(registry, entry.entry_id):
+        if entity.unique_id.endswith(_LEGACY_ENTITY_SUFFIXES):
+            _LOGGER.info("Removing legacy entity %s", entity.entity_id)
+            registry.async_remove(entity.entity_id)
 
 
 async def async_unload_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
@@ -99,6 +126,32 @@ def _find_device(hass: HomeAssistant, device_id: str | None) -> tuple[RFeederCoo
     raise HomeAssistantError(f"Unknown RFeeder device: {device_id}")
 
 
+def _weekday_mask(value: Any) -> int:
+    """Accept a list of weekday names (["mon","tue",...]) or a raw bitmask int."""
+    if value in (None, ""):
+        return 0
+    if isinstance(value, int):
+        return value
+    mask = 0
+    for name in value if isinstance(value, list) else [value]:
+        key = str(name).strip().lower()[:3]
+        if key not in _WEEKDAY_BITS:
+            raise HomeAssistantError(f"Unknown weekday: {name!r} (use mon..sun)")
+        mask |= 1 << _WEEKDAY_BITS[key]
+    return mask
+
+
+def _local_time_to_utc(time_str: str) -> tuple[int, int]:
+    """Convert a local "HH:MM" wall time (HA timezone) to UTC hour/minute."""
+    parts = str(time_str).strip().split(":")
+    if len(parts) < 2:
+        raise HomeAssistantError(f"Invalid time {time_str!r} (expected HH:MM)")
+    now = dt_util.now()
+    local = now.replace(hour=int(parts[0]), minute=int(parts[1]), second=0, microsecond=0)
+    utc = local.astimezone(dt_util.UTC)
+    return utc.hour, utc.minute
+
+
 def _register_services(hass: HomeAssistant) -> None:
     if hass.services.has_service(DOMAIN, SERVICE_FEED_NOW):
         return
@@ -115,6 +168,12 @@ def _register_services(hass: HomeAssistant) -> None:
             tray_default = int(tray_index)
         except (TypeError, ValueError):
             tray_default = 1
+        duration_minutes = call.data.get("feed_duration_minutes")
+        duration_seconds = (
+            int(round(duration_minutes * 60))
+            if duration_minutes is not None
+            else int(prefs.get("feedDurationSeconds", 300))
+        )
         try:
             await coordinator.async_feed_now(
                 device_id,
@@ -122,13 +181,10 @@ def _register_services(hass: HomeAssistant) -> None:
                     "tray_compartment_index",
                     coordinator.get_compartment(device_id, tray_default),
                 ),
-                feed_duration_seconds=call.data.get(
-                    "feed_duration_seconds", prefs.get("feedDurationSeconds", 300)
-                ),
+                feed_duration_seconds=duration_seconds,
                 heat_before_feeding=call.data.get("heat_before_feeding", False),
-                expected_heating_temperature=call.data.get(
-                    "expected_heating_temperature",
-                    prefs.get("expectedHeatingTemperature", 24),
+                expected_heating_temperature=float(
+                    prefs.get("expectedHeatingTemperature", 24)
                 ),
             )
         except MqttError as err:
@@ -136,17 +192,25 @@ def _register_services(hass: HomeAssistant) -> None:
 
     async def handle_add_schedule(call: ServiceCall) -> None:
         coordinator, device_id = _find_device(hass, call.data.get(CONF_DEVICE_ID))
+        if call.data.get("time"):
+            hour, minute = _local_time_to_utc(call.data["time"])
+        elif "hour" in call.data and "minute" in call.data:
+            hour, minute = call.data["hour"], call.data["minute"]
+        else:
+            raise HomeAssistantError("Provide 'time' (local HH:MM) or 'hour'+'minute' (UTC)")
         schedule = {
             "id": 0,
-            "hour": call.data["hour"],
-            "minute": call.data["minute"],
+            "hour": hour,
+            "minute": minute,
             "enabled": call.data.get("enabled", True),
-            "weekdays": call.data.get("weekdays", 0),
+            "weekdays": _weekday_mask(call.data.get("weekdays")),
             "feedOptions": {
                 "trayCompartmentIndex": call.data.get("tray_compartment_index", 1),
-                "feedDurationSeconds": call.data.get("feed_duration_seconds", 300),
+                "feedDurationSeconds": int(
+                    round(call.data.get("feed_duration_minutes", 5) * 60)
+                ),
                 "heatBeforeFeeding": call.data.get("heat_before_feeding", False),
-                "expectedHeatingTemperature": call.data.get("expected_heating_temperature", 24),
+                "expectedHeatingTemperature": 24,
             },
         }
         try:
@@ -235,9 +299,8 @@ def _register_services(hass: HomeAssistant) -> None:
             {
                 vol.Optional(CONF_DEVICE_ID): str,
                 vol.Optional("tray_compartment_index"): vol.Coerce(int),
-                vol.Optional("feed_duration_seconds"): vol.Coerce(int),
+                vol.Optional("feed_duration_minutes"): vol.Coerce(float),
                 vol.Optional("heat_before_feeding"): bool,
-                vol.Optional("expected_heating_temperature"): vol.Coerce(float),
             }
         ),
     )
@@ -248,14 +311,14 @@ def _register_services(hass: HomeAssistant) -> None:
         schema=vol.Schema(
             {
                 vol.Optional(CONF_DEVICE_ID): str,
-                vol.Required("hour"): vol.All(vol.Coerce(int), vol.Range(min=0, max=23)),
-                vol.Required("minute"): vol.All(vol.Coerce(int), vol.Range(min=0, max=59)),
-                vol.Optional("weekdays", default=0): vol.Coerce(int),
+                vol.Optional("time"): str,
+                vol.Optional("hour"): vol.All(vol.Coerce(int), vol.Range(min=0, max=23)),
+                vol.Optional("minute"): vol.All(vol.Coerce(int), vol.Range(min=0, max=59)),
+                vol.Optional("weekdays", default=0): vol.Any(vol.Coerce(int), [str]),
                 vol.Optional("enabled", default=True): bool,
                 vol.Optional("tray_compartment_index", default=1): vol.Coerce(int),
-                vol.Optional("feed_duration_seconds", default=300): vol.Coerce(int),
+                vol.Optional("feed_duration_minutes", default=5): vol.Coerce(float),
                 vol.Optional("heat_before_feeding", default=False): bool,
-                vol.Optional("expected_heating_temperature", default=24): vol.Coerce(float),
             }
         ),
     )

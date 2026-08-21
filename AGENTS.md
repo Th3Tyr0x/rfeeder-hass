@@ -10,11 +10,15 @@ against the UBTech UCSP cloud. Domain: `rfeeder`.
   - `mqtt_client.py` — stdlib blocking MQTT 3.1.1-over-TLS client (no paho dependency)
   - `proto.py` — minimal protobuf + thing-model codecs (see docs/PROTOCOL.md)
   - `coordinator.py` — DataUpdateCoordinator (REST poll) + MQTT thread (live push, commands)
-  - `sensor.py` / `binary_sensor.py` / `switch.py` / `number.py` / `button.py` — platforms
+  - `sensor.py` / `binary_sensor.py` / `switch.py` / `number.py` / `select.py` / `button.py` — platforms
   - `secrets.py` — obfuscated bundle of the app constants (do not paste raw values elsewhere)
+- `blueprints/automation/rfeeder/feeding_schedule.yaml` — HA-side feeding schedule blueprint
 - `docs/PROTOCOL.md` — full reverse-engineered protocol documentation (READ THIS FIRST)
 - `tools/live_test.py` — end-to-end smoke test against the live cloud
   (uses real integration modules with HA shims; `--feed` triggers a physical feeding!)
+- `tools/ha_integration_test.py` — boots a real HA core and exercises the integration
+  (needs a HA install, e.g. a venv with `pip install homeassistant`; credentials via
+  RFEEDER_ACCOUNT / RFEEDER_PASSWORD env vars)
 
 ## Hard-won vendor quirks (do not regress!)
 1. **Regional host**: resolve `GET /usercenter/v1/area-domains` before login and use the
