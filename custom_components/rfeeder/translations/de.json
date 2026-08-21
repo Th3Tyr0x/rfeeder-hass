@@ -242,6 +242,24 @@
           "description": "Aktivieren oder deaktivieren"
         }
       }
+    },
+    "sync_weekly_plan": {
+      "name": "Wochenplan synchronisieren",
+      "description": "Ersetzt die Fütterungspläne auf dem Gerät durch den übergebenen Plan (wird von der Wochenplan-Karte genutzt).",
+      "fields": {
+        "device_id": {
+          "name": "Gerät",
+          "description": "Geräte-ID des Feeders (optional bei nur einem Gerät)"
+        },
+        "plan": {
+          "name": "Plan",
+          "description": "Liste von Einträgen: {compartment, time (Ortszeit HH:MM), weekdays [mon..sun], feed_duration_minutes, heat_before_feeding, enabled}"
+        },
+        "replace": {
+          "name": "Ersetzen",
+          "description": "Alle bestehenden Pläne ersetzen (Standard: an)"
+        }
+      }
     }
   }
 }

@@ -242,6 +242,24 @@
           "description": "Enable or disable"
         }
       }
+    },
+    "sync_weekly_plan": {
+      "name": "Sync weekly plan",
+      "description": "Replaces the on-device feeding schedules with the given plan (used by the weekly card).",
+      "fields": {
+        "device_id": {
+          "name": "Device",
+          "description": "Feeder device id (optional if only one device)"
+        },
+        "plan": {
+          "name": "Plan",
+          "description": "List of entries: {compartment, time (local HH:MM), weekdays [mon..sun], feed_duration_minutes, heat_before_feeding, enabled}"
+        },
+        "replace": {
+          "name": "Replace",
+          "description": "Replace all existing schedules (default: on)"
+        }
+      }
     }
   }
 }

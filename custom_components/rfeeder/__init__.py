@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import logging
+from pathlib import Path
 from typing import Any
 
 import voluptuous as vol
@@ -30,6 +31,7 @@ from .const import (
     SERVICE_FEED_NOW,
     SERVICE_REMOVE_SCHEDULE,
     SERVICE_SET_SCHEDULE_ENABLED,
+    SERVICE_SYNC_WEEKLY_PLAN,
 )
 from .coordinator import RFeederCoordinator
 from .mqtt_client import MqttError
@@ -85,12 +87,33 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     await hass.config_entries.async_forward_entry_setups(entry, PLATFORMS)
 
     _cleanup_legacy_entities(hass, entry)
+    _register_card(hass)
 
     coordinator.start_mqtt()
     entry.async_on_unload(coordinator.stop_mqtt)
 
     _register_services(hass)
     return True
+
+
+def _register_card(hass: HomeAssistant) -> None:
+    """Serve the bundled Lovelace card and load it on every dashboard page."""
+    card_path = Path(__file__).parent / "www" / "rfeeder-card.js"
+    if not card_path.is_file():
+        _LOGGER.warning("RFeeder card file missing: %s", card_path)
+        return
+    url = f"/{DOMAIN}_www/rfeeder-card.js"
+    hass.http.register_static_path(url, str(card_path), cache_headers=False)
+    try:
+        from homeassistant.components import frontend
+
+        frontend.add_extra_js_url(hass, url)
+    except (ImportError, AttributeError) as err:
+        _LOGGER.warning(
+            "Could not auto-register the RFeeder card; add the resource manually: %s (%s)",
+            url,
+            err,
+        )
 
 
 def _cleanup_legacy_entities(hass: HomeAssistant, entry: ConfigEntry) -> None:
@@ -227,6 +250,60 @@ def _register_services(hass: HomeAssistant) -> None:
         except MqttError as err:
             raise HomeAssistantError(str(err)) from err
 
+    async def handle_sync_weekly_plan(call: ServiceCall) -> None:
+        coordinator, device_id = _find_device(hass, call.data.get(CONF_DEVICE_ID))
+        plan = call.data.get("plan") or []
+        if not isinstance(plan, list):
+            raise HomeAssistantError("plan must be a list of schedule entries")
+
+        schedules: list[dict[str, Any]] = []
+        for i, entry in enumerate(plan):
+            if not isinstance(entry, dict):
+                raise HomeAssistantError(f"plan entry #{i} is not a mapping")
+            if "time" in entry and entry["time"]:
+                hour, minute = _local_time_to_utc(entry["time"])
+            elif "hour" in entry and "minute" in entry:
+                hour, minute = int(entry["hour"]), int(entry["minute"])
+            else:
+                raise HomeAssistantError(f"plan entry #{i} misses 'time'")
+            compartment = int(entry.get("compartment", entry.get("tray_compartment_index", 1)))
+            if not 1 <= compartment <= 4:
+                raise HomeAssistantError(f"plan entry #{i}: compartment must be 1-4")
+            schedules.append(
+                {
+                    "id": 0,
+                    "hour": hour,
+                    "minute": minute,
+                    "enabled": bool(entry.get("enabled", True)),
+                    "weekdays": _weekday_mask(entry.get("weekdays")),
+                    "feedOptions": {
+                        "trayCompartmentIndex": compartment,
+                        "feedDurationSeconds": int(
+                            round(float(entry.get("feed_duration_minutes", 5)) * 60)
+                        ),
+                        "heatBeforeFeeding": bool(entry.get("heat_before_feeding", False)),
+                        "expectedHeatingTemperature": 24,
+                    },
+                }
+            )
+
+        try:
+            if call.data.get("replace", True):
+                shadow = coordinator.data["devices"][device_id].get("shadow", {})
+                existing = shadow.get("10:11:13", {})
+                current = []
+                if isinstance(existing, dict) and isinstance(existing.get("value"), dict):
+                    current = existing["value"].get("schedules") or []
+                ids = [int(s["id"]) for s in current if isinstance(s, dict) and s.get("id") is not None]
+                if ids:
+                    await coordinator.async_remove_schedules(device_id, ids)
+            if schedules:
+                await coordinator.async_set_schedules(
+                    device_id, proto.SERVICE_ADD_SCHEDULES, schedules
+                )
+        except MqttError as err:
+            raise HomeAssistantError(str(err)) from err
+
     async def handle_set_schedule_enabled(call: ServiceCall) -> None:
         coordinator, device_id = _find_device(hass, call.data.get(CONF_DEVICE_ID))
         schedule_id = int(call.data["schedule_id"])
@@ -330,6 +407,18 @@ def _register_services(hass: HomeAssistant) -> None:
             {
                 vol.Optional(CONF_DEVICE_ID): str,
                 vol.Required("schedule_id"): vol.Coerce(int),
+            }
+        ),
+    )
+    hass.services.async_register(
+        DOMAIN,
+        SERVICE_SYNC_WEEKLY_PLAN,
+        handle_sync_weekly_plan,
+        schema=vol.Schema(
+            {
+                vol.Optional(CONF_DEVICE_ID): str,
+                vol.Required("plan"): [dict],
+                vol.Optional("replace", default=True): bool,
             }
         ),
     )

@@ -33,29 +33,26 @@ decrypted Dart AOT snapshot). Protocol documentation: [docs/PROTOCOL.md](docs/PR
 - `rfeeder.add_schedule` / `rfeeder.remove_schedule` / `rfeeder.set_schedule_enabled` —
   manage feeding schedules stored **on the device** (run autonomously, even without HA)
 
-## Feeding plans
+## Feeding plans (weekly plan)
 
-Two ways to schedule feedings:
+### Weekly plan card (recommended)
 
-### Option A: Blueprint (recommended, nicest UI)
+The integration ships a Lovelace card — **no manual resource registration needed**,
+it is loaded automatically once the integration is set up:
 
-[![Import Blueprint](https://my.home-assistant.io/badges/blueprint_import.svg)](https://my.home-assistant.io/redirect/blueprint_import/?blueprint_url=https%3A%2F%2Fraw.githubusercontent.com%2FTh3Tyr0x%2Frfeeder-hass%2Fmain%2Fblueprints%2Fautomation%2Frfeeder%2Ffeeding_schedule.yaml)
-
-Click the badge (or in HA: *Settings → Automations & Scenes → Blueprints → Import Blueprint*)
-and paste this URL:
-
-```
-https://raw.githubusercontent.com/Th3Tyr0x/rfeeder-hass/main/blueprints/automation/rfeeder/feeding_schedule.yaml
+```yaml
+type: custom:rfeeder-weekly-card
 ```
 
-Then create one automation per plan: time (local), weekdays, tray compartment,
-duration in minutes, optional pre-heat. These plans run through Home Assistant
-and need HA + cloud connectivity at feeding time.
+- Grid: **rows = tray compartments 1–4, columns = Mon–Sun**
+- Click **+** in a cell to add a feeding time, click a time chip to delete it
+- Duration (minutes) and pre-heat toggles at the bottom apply to all entries
+- **Save** writes the whole week to the device in one go (via `rfeeder.sync_weekly_plan`)
 
-### Option B: On-device schedules (run autonomously)
+### On-device schedules (run autonomously)
 
-Schedules stored on the feeder itself keep working even when HA or the internet
-is down. Manage them via actions:
+Schedules are stored **on the feeder itself** and keep working even when HA or
+the internet is down. Besides the card you can manage them via actions:
 
 ```yaml
 action: rfeeder.add_schedule
@@ -64,6 +61,16 @@ data:
   weekdays: ["mon","tue","wed","thu","fri"]
   tray_compartment_index: 1
   feed_duration_minutes: 5
+```
+
+```yaml
+action: rfeeder.sync_weekly_plan   # replace all schedules in one call
+data:
+  replace: true
+  plan:
+    - { compartment: 1, time: "08:00", weekdays: ["mon","tue","wed","thu","fri"] }
+    - { compartment: 2, time: "12:30", weekdays: ["mon","wed","fri"] }
+    - { compartment: 3, time: "18:00" }   # no weekdays = one-time
 ```
 
 - `weekdays` empty = one-time; a raw bitmask int (bit0=Sunday … bit6=Saturday) is also accepted.

@@ -74,6 +74,22 @@ add_schedule:
       selector:
         boolean:
 
+sync_weekly_plan:
+  fields:
+    device_id:
+      required: false
+      selector:
+        text:
+    plan:
+      required: true
+      selector:
+        object:
+    replace:
+      required: false
+      default: true
+      selector:
+        boolean:
+
 remove_schedule:
   fields:
     device_id:
