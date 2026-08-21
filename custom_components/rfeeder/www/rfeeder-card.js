@@ -49,6 +49,7 @@ class RFeederWeeklyCard extends HTMLElement {
     this._saving = false;
     this._duration = 5;
     this._preheat = false;
+    this._editing = null; // {compartment, dayIdx} of the cell with an open time input
   }
 
   setConfig(config) {
@@ -191,7 +192,9 @@ class RFeederWeeklyCard extends HTMLElement {
         const chips = this._chips
           .map((c, i) => ({ ...c, i }))
           .filter((c) => c.compartment === comp && c.dayIdx === d);
-        row.push({ d, chips });
+        const editing =
+          this._editing && this._editing.compartment === comp && this._editing.dayIdx === d;
+        row.push({ d, chips, editing });
       }
       cells.push({ comp, row });
     }
@@ -216,6 +219,9 @@ class RFeederWeeklyCard extends HTMLElement {
                color:var(--primary-text-color); opacity:0.6; cursor:pointer; font-size:0.8em;
                padding:0 6px; }
         .add:hover { opacity:1; }
+        .timeedit { width:78px; font-size:0.8em; border:1px solid var(--primary-color);
+                    border-radius:6px; background:var(--card-background-color);
+                    color:var(--primary-text-color); padding:1px 2px; }
         .controls { display:flex; gap:12px; align-items:center; flex-wrap:wrap; margin-top:10px; }
         .controls label { font-size:0.85em; display:flex; align-items:center; gap:4px; }
         .controls input[type=number] { width:60px; }
@@ -236,7 +242,7 @@ class RFeederWeeklyCard extends HTMLElement {
               <div class="complabel">${comp}</div>
               ${row
                 .map(
-                  ({ d, chips }) => `
+                  ({ d, chips, editing }) => `
                 <div class="cell" data-comp="${comp}" data-day="${d}">
                   ${chips
                     .map(
@@ -244,7 +250,11 @@ class RFeederWeeklyCard extends HTMLElement {
                         `<span class="chip" data-idx="${c.i}" title="löschen / delete">${c.time} ✕</span>`
                     )
                     .join("")}
-                  <button class="add" data-comp="${comp}" data-day="${d}">${t.add}</button>
+                  ${
+                    editing
+                      ? `<input type="time" class="timeedit" data-comp="${comp}" data-day="${d}">`
+                      : `<button class="add" data-comp="${comp}" data-day="${d}">${t.add}</button>`
+                  }
                 </div>`
                 )
                 .join("")}
@@ -271,34 +281,39 @@ class RFeederWeeklyCard extends HTMLElement {
       el.addEventListener("click", () => this._removeChip(Number(el.dataset.idx)))
     );
     this.shadowRoot.querySelectorAll(".add").forEach((el) =>
-      el.addEventListener("click", () => this._askTime(Number(el.dataset.comp), Number(el.dataset.day)))
+      el.addEventListener("click", () => {
+        this._editing = { compartment: Number(el.dataset.comp), dayIdx: Number(el.dataset.day) };
+        this._render();
+        const input = this.shadowRoot.querySelector(".timeedit");
+        if (input) {
+          input.focus();
+          if (input.showPicker) {
+            try { input.showPicker(); } catch (e) { /* ignore */ }
+          }
+        }
+      })
     );
+    this.shadowRoot.querySelectorAll(".timeedit").forEach((el) => {
+      const commit = () => {
+        if (el.value) this._addChip(Number(el.dataset.comp), Number(el.dataset.day), el.value);
+        this._editing = null;
+        this._render();
+      };
+      el.addEventListener("change", commit);
+      el.addEventListener("keydown", (ev) => {
+        if (ev.key === "Enter") commit();
+        if (ev.key === "Escape") { this._editing = null; this._render(); }
+      });
+      el.addEventListener("blur", () => {
+        if (this._editing) { this._editing = null; this._render(); }
+      });
+    });
     const dur = this.shadowRoot.getElementById("dur");
     if (dur) dur.addEventListener("change", () => { this._duration = dur.value; this._dirty = true; this._render(); });
     const pre = this.shadowRoot.getElementById("preheat");
     if (pre) pre.addEventListener("change", () => { this._preheat = pre.checked; this._dirty = true; this._render(); });
     const save = this.shadowRoot.getElementById("save");
     if (save) save.addEventListener("click", () => this._save());
-  }
-
-  _askTime(compartment, dayIdx) {
-    const input = document.createElement("input");
-    input.type = "time";
-    input.style.position = "fixed";
-    input.style.left = "-9999px";
-    document.body.appendChild(input);
-    input.addEventListener("change", () => {
-      this._addChip(compartment, dayIdx, input.value);
-      document.body.removeChild(input);
-    });
-    input.addEventListener("blur", () => {
-      if (document.body.contains(input)) document.body.removeChild(input);
-    });
-    if (input.showPicker) {
-      try { input.showPicker(); } catch (e) { input.focus(); }
-    } else {
-      input.focus();
-    }
   }
 
   getCardSize() {
