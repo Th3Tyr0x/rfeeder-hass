@@ -50,6 +50,7 @@ class RFeederWeeklyCard extends HTMLElement {
     this._duration = 5;
     this._preheat = false;
     this._editing = null; // {compartment, dayIdx} of the cell with an open time input
+    this._lastDataKey = null; // fingerprint of the sensor data last rendered
   }
 
   setConfig(config) {
@@ -77,10 +78,21 @@ class RFeederWeeklyCard extends HTMLElement {
     if (!this._entityId) {
       this._entityId = RFeederWeeklyCard.findSensor(hass);
     }
-    if (!this._dirty && !this._saving) {
-      this._loadFromState();
+    // Only reload/re-render when the sensor data actually changed, and never
+    // while the user is editing (re-rendering would destroy the open input).
+    const state = this._entityId ? hass.states[this._entityId] : null;
+    const dataKey = state
+      ? JSON.stringify(state.attributes.schedules || []) + "|" + (state.attributes.friendly_name || "")
+      : "none";
+    if (dataKey !== this._lastDataKey) {
+      this._lastDataKey = dataKey;
+      if (!this._dirty && !this._saving && !this._editing) {
+        this._loadFromState();
+        this._render();
+      }
+      return;
     }
-    this._render();
+    if (!this._rendered) this._render();
   }
 
   _strings() {
@@ -119,8 +131,11 @@ class RFeederWeeklyCard extends HTMLElement {
 
   _addChip(compartment, dayIdx, time) {
     if (!time) return;
+    // one feeding time per cell
+    this._chips = this._chips.filter(
+      (c) => !(c.compartment === compartment && c.dayIdx === dayIdx)
+    );
     this._chips.push({ compartment, dayIdx, time, enabled: true });
-    this._chips.sort((a, b) => a.time.localeCompare(b.time));
     this._dirty = true;
     this._render();
   }
@@ -175,6 +190,7 @@ class RFeederWeeklyCard extends HTMLElement {
 
   _render() {
     if (!this.shadowRoot) return;
+    this._rendered = true;
     const t = this._strings();
     const dayLabels = this._dayLabels();
     const state = this._hass && this._entityId ? this._hass.states[this._entityId] : null;
@@ -253,7 +269,9 @@ class RFeederWeeklyCard extends HTMLElement {
                   ${
                     editing
                       ? `<input type="time" class="timeedit" data-comp="${comp}" data-day="${d}">`
-                      : `<button class="add" data-comp="${comp}" data-day="${d}">${t.add}</button>`
+                      : chips.length
+                        ? ""
+                        : `<button class="add" data-comp="${comp}" data-day="${d}">${t.add}</button>`
                   }
                 </div>`
                 )
@@ -304,9 +322,6 @@ class RFeederWeeklyCard extends HTMLElement {
         if (ev.key === "Enter") commit();
         if (ev.key === "Escape") { this._editing = null; this._render(); }
       });
-      el.addEventListener("blur", () => {
-        if (this._editing) { this._editing = null; this._render(); }
-      });
     });
     const dur = this.shadowRoot.getElementById("dur");
     if (dur) dur.addEventListener("change", () => { this._duration = dur.value; this._dirty = true; this._render(); });
@@ -330,7 +345,9 @@ class RFeederWeeklyCard extends HTMLElement {
   }
 }
 
-customElements.define("rfeeder-weekly-card", RFeederWeeklyCard);
+if (!customElements.get("rfeeder-weekly-card")) {
+  customElements.define("rfeeder-weekly-card", RFeederWeeklyCard);
+}
 
 /** Minimal GUI editor: entity picker (pre-filled with the auto-detected
  *  next-feeding sensor) + optional card title. */
@@ -399,11 +416,15 @@ class RFeederWeeklyCardEditor extends HTMLElement {
   }
 }
 
-customElements.define("rfeeder-weekly-card-editor", RFeederWeeklyCardEditor);
+if (!customElements.get("rfeeder-weekly-card-editor")) {
+  customElements.define("rfeeder-weekly-card-editor", RFeederWeeklyCardEditor);
+}
 
 window.customCards = window.customCards || [];
-window.customCards.push({
-  type: "rfeeder-weekly-card",
-  name: "RFeeder Weekly Plan",
-  description: "Weekly feeding plan grid for the Robotail RFeeder (compartments x days).",
-});
+if (!window.customCards.some((c) => c.type === "rfeeder-weekly-card")) {
+  window.customCards.push({
+    type: "rfeeder-weekly-card",
+    name: "RFeeder Weekly Plan",
+    description: "Weekly feeding plan grid for the Robotail RFeeder (compartments x days).",
+  });
+}
