@@ -58,13 +58,23 @@ class RFeederWeeklyCard extends HTMLElement {
     this._render();
   }
 
+  /** Find the next-scheduled-feeding sensor by content, not by entity id
+   *  (entity ids are translated with the UI language). */
+  static findSensor(hass) {
+    if (!hass) return null;
+    const found = Object.values(hass.states).find(
+      (s) =>
+        s.entity_id.startsWith("sensor.") &&
+        s.attributes &&
+        Array.isArray(s.attributes.schedules)
+    );
+    return found ? found.entity_id : null;
+  }
+
   set hass(hass) {
     this._hass = hass;
     if (!this._entityId) {
-      const found = Object.keys(hass.states).find((id) =>
-        id.startsWith("sensor.") && id.endsWith("_next_scheduled_feeding")
-      );
-      if (found) this._entityId = found;
+      this._entityId = RFeederWeeklyCard.findSensor(hass);
     }
     if (!this._dirty && !this._saving) {
       this._loadFromState();
@@ -295,12 +305,86 @@ class RFeederWeeklyCard extends HTMLElement {
     return 5;
   }
 
-  static getStubConfig() {
-    return {};
+  static getStubConfig(hass) {
+    const entity = RFeederWeeklyCard.findSensor(hass);
+    return entity ? { entity } : {};
+  }
+
+  static getConfigElement() {
+    return document.createElement("rfeeder-weekly-card-editor");
   }
 }
 
 customElements.define("rfeeder-weekly-card", RFeederWeeklyCard);
+
+/** Minimal GUI editor: entity picker (pre-filled with the auto-detected
+ *  next-feeding sensor) + optional card title. */
+class RFeederWeeklyCardEditor extends HTMLElement {
+  constructor() {
+    super();
+    this.attachShadow({ mode: "open" });
+  }
+
+  setConfig(config) {
+    this._config = config || {};
+    this._render();
+  }
+
+  set hass(hass) {
+    this._hass = hass;
+    if (!this._config || !this._config.entity) {
+      const found = RFeederWeeklyCard.findSensor(hass);
+      if (found) this._set("entity", found);
+    }
+    this._render();
+  }
+
+  _set(key, value) {
+    this._config = { ...(this._config || {}), [key]: value };
+    this.dispatchEvent(
+      new CustomEvent("config-changed", { detail: { config: this._config }, bubbles: true, composed: true })
+    );
+    this._render();
+  }
+
+  _render() {
+    if (!this.shadowRoot) return;
+    const entity = (this._config && this._config.entity) || "";
+    const name = (this._config && this._config.name) || "";
+    this.shadowRoot.innerHTML = `
+      <style>
+        .wrap { padding: 8px 0; display: flex; flex-direction: column; gap: 16px; }
+        label { font-size: 0.9em; opacity: 0.8; display: block; margin-bottom: 4px; }
+        input { width: 100%; box-sizing: border-box; padding: 6px; }
+      </style>
+      <div class="wrap">
+        <div>
+          <label>Entity (Next scheduled feeding sensor)</label>
+          <ha-entity-picker id="picker"></ha-entity-picker>
+        </div>
+        <div>
+          <label>Name (optional)</label>
+          <input id="name" value="${name}">
+        </div>
+      </div>
+    `;
+    const picker = this.shadowRoot.getElementById("picker");
+    if (picker && this._hass) {
+      picker.hass = this._hass;
+      picker.value = entity;
+      picker.includeDomains = ["sensor"];
+      picker.addEventListener("value-changed", (ev) => {
+        if (ev.detail && ev.detail.value) this._set("entity", ev.detail.value);
+      });
+    }
+    const nameInput = this.shadowRoot.getElementById("name");
+    if (nameInput) {
+      nameInput.addEventListener("change", () => this._set("name", nameInput.value));
+    }
+  }
+}
+
+customElements.define("rfeeder-weekly-card-editor", RFeederWeeklyCardEditor);
 
 window.customCards = window.customCards || [];
 window.customCards.push({
