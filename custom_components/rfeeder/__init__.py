@@ -94,6 +94,15 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     return True
 
 
+def _cleanup_legacy_entities(hass: HomeAssistant, entry: ConfigEntry) -> None:
+    """Remove entity-registry entries of entities removed in later releases."""
+    registry = er.async_get(hass)
+    for entity in er.async_entries_for_config_entry(registry, entry.entry_id):
+        if entity.unique_id.endswith(_LEGACY_ENTITY_SUFFIXES):
+            _LOGGER.info("Removing legacy entity %s", entity.entity_id)
+            registry.async_remove(entity.entity_id)
+
+
 async def async_unload_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     unload_ok = await hass.config_entries.async_unload_platforms(entry, PLATFORMS)
     if unload_ok:
